@@ -1,0 +1,18 @@
+2026-07-10 04:49:53 INFO USER help
+2026-07-10 04:49:53 INFO FRIDAY Available commands:
+  - help
+  - time / date / status
+  - calc <expression>
+  - note add <text> | note list
+  - todo add <text> | todo list | todo done <id> | todo remove <id>
+  - remind <duration> <text>      (e.g. remind 10m drink water)
+  - alarm <HH:MM> <text>
+  - due                            (list pending reminders/alarms)
+  - pref set <key> <value> | pref get <key> | pref list
+  - plugin list | plugin run <name> [args...]
+  - voice on|off|say <text>|listen
+  - llm on|off|status
+  - history [count]
+  - exit / quit
+2026-07-10 04:49:53 INFO USER exit
+2026-07-10 04:49:53 INFO FRIDAY Shutting down Friday. Goodbye.
