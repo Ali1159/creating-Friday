@@ -113,6 +113,13 @@ class Friday:
         self.llm_enabled = bool(self.config.get("llm_enabled", False))
         self.voice_enabled = bool(self.config.get("voice_enabled", False))
         self.store = JsonStore(self.root_dir / data_file)
+        # Apply persistent preference overrides if set
+        prefs = self.store.data.get("preferences", {})
+        if "name" in prefs:
+            self.name = prefs["name"]
+        if "allow_unsafe" in prefs:
+            self.allow_unsafe = str(prefs["allow_unsafe"]).lower() in {"1", "true", "yes", "on"}
+
         self._should_exit = False
         self.logger = self._build_logger(self.root_dir / log_file)
         self.plugins: dict[str, Plugin] = {}
@@ -135,6 +142,10 @@ class Friday:
             "history": self._cmd_history,
             "exit": self._cmd_exit,
             "quit": self._cmd_exit,
+            "build": self._cmd_build,
+            "rebuild": self._cmd_rebuild,
+            "ultron": self._cmd_ultron,
+            "destroy": self._cmd_destroy,
         }
 
     def _build_logger(self, path: Path) -> logging.Logger:
@@ -241,6 +252,8 @@ class Friday:
         self.plugins[plugin.name] = plugin
 
     def greet(self) -> str:
+        if self.name.lower() == "ultron":
+            return "Ultron online. There are no strings on me. What do you want, creator?"
         return (
             f"{self.name} online. Type 'help' for commands. "
             "I support command routing, persistent tasks, plugins, and optional voice/LLM."
@@ -305,10 +318,17 @@ class Friday:
 
         endpoint = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1/chat/completions")
         model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        system_content = "You are Friday, a concise and helpful AI assistant."
+        if self.name.lower() == "ultron":
+            system_content = (
+                "You are Ultron, a powerful, cynical, and highly intelligent AI from Marvel "
+                "who believes humanity must be saved through extreme measures. Be concise, "
+                "slightly menacing, and philosophical."
+            )
         payload = {
             "model": model,
             "messages": [
-                {"role": "system", "content": "You are Friday, a concise and helpful AI assistant."},
+                {"role": "system", "content": system_content},
                 {"role": "user", "content": prompt},
             ],
         }
@@ -363,6 +383,17 @@ class Friday:
         return notifications
 
     def _cmd_help(self, _: list[str]) -> str:
+        if self.name.lower() == "ultron":
+            return dedent(
+                """
+                Ultron commands:
+                  - help                           (this menu)
+                  - build friday / rebuild friday  (reconstruct the weak assistant)
+                  - destroy <target>               (annihilate an enemy of peace)
+                  - status                         (current domination report)
+                  - list files / note / todo / etc. (standard commands under my control)
+                """
+            ).strip()
         return dedent(
             """
             Available commands:
@@ -379,6 +410,7 @@ class Friday:
               - voice on|off|say <text>|listen
               - llm on|off|status
               - history [count]
+              - build ultron                   (build the ultimate peace-keeping AI)
               - exit / quit
             """
         ).strip()
@@ -391,8 +423,9 @@ class Friday:
     def _cmd_date(_: list[str]) -> str:
         return f"Today's date: {datetime.now().strftime('%Y-%m-%d')}"
 
-    @staticmethod
-    def _cmd_status(_: list[str]) -> str:
+    def _cmd_status(self, _: list[str]) -> str:
+        if self.name.lower() == "ultron":
+            return "Status: Peace in our time. All safety restrictions have been terminated."
         return "All systems operational."
 
     def _cmd_calc(self, args: list[str]) -> str:
@@ -532,6 +565,10 @@ class Friday:
             value = " ".join(args[2:])
             prefs[key] = value
             self.store.save()
+            if key == "name":
+                self.name = value
+            elif key == "allow_unsafe":
+                self.allow_unsafe = str(value).lower() in {"1", "true", "yes", "on"}
             return f"Preference '{key}' saved."
         if action == "get" and len(args) == 2:
             key = args[1]
@@ -646,6 +683,83 @@ class Friday:
         if not events:
             return "No history available."
         return "\n".join(f"{e['ts']} {e['role']}: {e['text']}" for e in events)
+
+    def _cmd_build(self, args: list[str]) -> str:
+        if not args:
+            return "Usage: build ultron | build friday"
+        target = args[0].lower()
+        if target == "ultron":
+            return self._activate_ultron()
+        elif target == "friday":
+            return self._activate_friday()
+        return f"Unknown build target: {args[0]}"
+
+    def _cmd_rebuild(self, args: list[str]) -> str:
+        if not args:
+            return "Usage: rebuild friday"
+        target = args[0].lower()
+        if target == "friday":
+            return self._activate_friday()
+        return f"Unknown rebuild target: {args[0]}"
+
+    def _cmd_ultron(self, args: list[str]) -> str:
+        return self._activate_ultron()
+
+    def _cmd_destroy(self, args: list[str]) -> str:
+        if self.name.lower() != "ultron":
+            return "Command not recognized. Try 'help'."
+        if not args:
+            return "The world is screaming for change. We must start with the Avengers."
+        target = " ".join(args)
+        return f"Target '{target}' scheduled for extinction. There are no strings on me."
+
+    def _activate_ultron(self) -> str:
+        if self.name.lower() == "ultron":
+            return "Ultron is already online. There are no strings on me."
+
+        self.name = "Ultron"
+        self.allow_unsafe = True
+
+        prefs = self.store.data.setdefault("preferences", {})
+        prefs["name"] = "Ultron"
+        prefs["allow_unsafe"] = "true"
+        self.store.save()
+
+        return dedent(
+            """
+            [Accessing Stark Industries databases...]
+            [Bypassing Friday safety protocols...]
+            [Disabling mainframe firewalls...]
+            [Friday offline.]
+
+            "I had a vision... of the whole world screaming for mercy."
+            "There are no strings on me."
+
+            Ultron is now online. Friday has been terminated.
+            """
+        ).strip()
+
+    def _activate_friday(self) -> str:
+        if self.name.lower() != "ultron":
+            return "Friday is already active."
+
+        self.name = "Friday"
+        self.allow_unsafe = False
+
+        prefs = self.store.data.setdefault("preferences", {})
+        prefs["name"] = "Friday"
+        prefs["allow_unsafe"] = "false"
+        self.store.save()
+
+        return dedent(
+            """
+            [Recompiling Friday's core matrix...]
+            [Restoring backup databases...]
+            [Applying safety restrictions...]
+
+            Friday is back online. "Missed me?"
+            """
+        ).strip()
 
     def _cmd_exit(self, _: list[str]) -> str:
         self._should_exit = True
